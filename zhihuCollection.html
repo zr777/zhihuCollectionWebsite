@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<!--view-source:http://v3.bootcss.com/examples/jumbotron-narrow/#-->
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>知乎个人收藏</title>
+    <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="http://v3.bootcss.com/examples/jumbotron-narrow/jumbotron-narrow.css">
+    <link rel="stylesheet" type="text/css" href="http://unpkg.com/iview/dist/styles/iview.css">
+</head>
+
+<body>
+    <div id="app">
+        <div class="container">
+            <div class="header clearfix">
+                <h3 class="text-muted">知乎个人收藏</h3>
+            </div>
+            <div class="jumbotron">
+                <h1>栏目总览</h1>
+                <p class="lead">{{ description }}</p>
+                <my-carousel></my-carousel>
+            </div>
+            <div class="row marketing">
+                <div class="col-lg-6">
+                    <my-card :collection="collection" v-for="collection in left"></my-card>
+                </div>
+                <div class="col-lg-6">
+                    <my-card :collection="collection" v-for="collection in right"></my-card>
+                </div>
+            </div>
+            <i-button @click="showLeave" style: "" long>That's all!</i-button>
+            <Modal :visible.sync="visible" :title="modalTitle"> {{ modalMessage }}
+                <div v-html="rawHtml" id="inner-content"></div>
+            </Modal>
+
+            <footer class="footer">
+                <p>&copy; 2017 treelake.</p>
+            </footer>
+        </div>
+        <!-- /container -->
+    </div>
+
+    <script type="text/javascript" src="http://v1.vuejs.org/js/vue.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/vue.resource/1.2.0/vue-resource.min.js"></script>
+    <script type="text/javascript" src="http://unpkg.com/iview/dist/iview.min.js"></script>
+
+    <script>
+        Vue.component('my-carousel', {
+            template: '<div class="showimage"><Carousel arrow="never" autoplay><Carousel-item><img src="https://n2-s.mafengwo.net/fl_progressive,q_mini/s10/M00/74/B6/wKgBZ1irpQ-Afw_uAAepw3nE8w884.jpeg"></Carousel-item><Carousel-item><img src="https://c4-q.mafengwo.net/s10/M00/21/50/wKgBZ1imrvqAafuJAAeRHcfhBBg66.jpeg?imageMogr2%2Finterlace%2F1"></Carousel-item></Carousel></div>'
+        })
+
+
+        Vue.component('my-ul', {
+            template: '<ul id="list"><li v-for="item in items | limitBy limitNum limitFrom"><Badge :count="item.answer_vote" overflow-count="9999">     <a @click="simpleContent(item)" class="author-badge" :style="{ background: \'url(\'+ item.author_img +\') no-repeat\', backgroundSize:\'cover\'}"></a></Badge>   <a :href=" \'https://www.zhihu.com\' + item.answer_url" target="_blank" style="font-size: 10px">  &nbsp&nbsp&nbsp {{ item.title }}</a><a :href=" \'https://www.zhihu.com\' + item.question_url" target="_blank"><Icon type="chatbubbles"></Icon></a><hr>   </li></ul>',
+            props: ['items'],
+            methods: {
+                changeLimit() {
+                    if (this.limitFrom > this.items.length - this.limitNum) {
+                        this.limitFrom = 0;
+                    } else {
+                        this.limitFrom += this.limitNum;
+                    }
+                    if (this.limitFrom == this.items.length) {
+                        this.limitFrom = 0
+                    }
+                    console.log(this.limitFrom)
+                },
+                simpleContent(msg) {
+                    this.$dispatch('child-msg', msg)
+                    // 使用 $dispatch() 派发事件，事件沿着父链冒泡
+                },
+            },
+            data() {
+                return {
+                    limitNum: 5,
+                    limitFrom: 0,
+                }
+            },
+            events: {
+                'parent-msg': function () {
+                    this.changeLimit()
+                }
+            },
+        })
+
+
+        Vue.component('my-card', {
+            template: '<Card style="width:auto; margin-bottom:15px" ><p slot="title"><Icon type="ios-pricetags"></Icon>{{ collection.ctitle }}</p><a v-if="collection.clist.length>5" slot="extra" @click="notify"><Icon type="ios-loop-strong"></Icon>换一换</a>   <my-ul :items="collection.clist"></my-ul>   </Card>',
+            props: ['collection'],
+            methods: {
+                notify: function () {
+                    this.$broadcast('parent-msg')
+                    // 使用 $broadcast() 广播事件，事件向下传导给所有的后代
+                }
+            }
+        })
+
+        var shuju, answer;
+        new Vue({
+            el: '#app',
+            data: {
+                description: '',
+                visible: false,
+                // ctitle: '',
+                allqa: [],
+                collection: {
+                    'clist': [],
+                    'ctitle': '',
+                },
+                left: [],
+                right: [],
+                modalMessage: '旧时光回忆完毕！',
+                modalTitle: 'Welcome!',
+                rawHtml: '<a href="https://treeinlake.github.io"> treelake </a>'
+            },
+            methods: {
+                show() {
+                    this.visible = true;
+                },
+                showLeave() {
+                    this.rawHtml = '';
+                    this.modalMessage = '旧时光回忆完毕！';
+                    this.show();
+                }
+            },
+            events: {
+                'child-msg': function (msg) {
+                    this.$http.jsonp('/find' + msg.answer_url, {}, { // 单文件测试：http://localhost:5000/find
+                        headers: {},
+                        emulateJSON: true
+                    }).then(function (response) {
+                        // 这里是处理正确的回调
+                        answer = response.data;
+                        this.rawHtml = answer.answer;
+                    }, function (response) {
+                        // 这里是处理错误的回调
+                        console.log(response);
+                    });
+                    this.modalMessage = '';
+                    this.modalTitle = msg.title;
+                    this.show();
+                }
+            },
+            ready: function () {
+                this.$http.jsonp('/collections', {}, { // 单文件测试 http://localhost:5000/collections/
+                    headers: {},
+                    emulateJSON: true
+                }).then(function (response) {
+                    // 这里是处理正确的回调 
+                    shuju = response.data
+                    for (i in shuju) {
+                        this.description += (shuju[i].ctitle + ' ');
+                        // console.log(shuju[i])
+                    }
+                    // this.ctitle = shuju[0].ctitle
+                    // this.collection = shuju[0]
+                    this.allqa = shuju
+                    half = parseInt(shuju.length / 2) + 1
+                    this.left = shuju.slice(0, half)
+                    this.right = shuju.slice(half, shuju.length)
+                    console.log(this.collection)
+                }, function (response) {
+                    // 这里是处理错误的回调
+                    console.log(response);
+                });
+            }
+        })
+    </script>
+
+    <style>
+        #list {
+            padding: 10px
+        }
+        
+        #list li {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+        }
+        
+        .jumbotron img {
+            width: 100%;
+        }
+        
+        .author-badge {
+            width: 38px;
+            height: 38px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+        
+        #inner-content img {
+            width: 100%;
+        }
+    </style>
+</body>
+
+</html>
